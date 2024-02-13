@@ -1,0 +1,525 @@
+# ALCOVE Categorizer
+# generate random data
+
+
+
+
+
+
+# Create dimensional plane
+#' @@2 need to figure out a common scales and space out the values. like the other one 1 to 100 by 10 or something.
+#' 
+#' @@ creatre an in0puts matrix to be accessed by trial/person
+
+
+numoutcome = 2
+numvars = 5
+numnodes = 10
+nodeval = 1:numnodes
+nodelist = lapply(numeric(numvars), function(x) nodeval)
+NodeMatrix = as.matrix(expand.grid(nodelist))
+HiddenNodeMatrix = cbind(NodeMatrix,array((.5),c(nrow(NodeMatrix),numoutcome)))
+
+HNID = ((numvars+1):(numvars+numoutcome))
+
+
+inputs = c(100,140,120,125,70) # thes will be a vector of inptu values
+
+# maybe make 'a' be modified by the fraction of the information given, or design the model based on complexity, more complex more wieght, 
+# have to talk with teh tax law ladies to figure out these values, then stick break the alpha param down. 
+# 
+# Or just give a param to each and let it go.
+
+
+#try the bleow iwht constratins of 0,1, if doesnt work, try not ding standarization and -1,1 constriants. 
+InitAttn = c(.1,.7,.2,.1,.4)
+Attention = InitAttn/sum(InitAttn)
+
+# make sure that this is teh correct vectoriztion
+Activation = exp(-s*(rowSums((Params)*abs(sweep(HiddenNodeMatrix[,1:numvars],2,inputs)))))
+sumAct=sum(Activation)
+
+ActOut=colSums(HiddenNodeMatrix[,HNID]*(Activation/sumAct))
+
+
+ActMod = sum(exp(ct*ActOut))
+
+sMax=(exp(ct*ActOut))/(sum(exp(ct*ActOut)))
+
+
+choiceprob = runif(1,0,1)
+# for (outcome in numoutcome){
+#   
+#   
+#   
+# }
+
+if (choiceprob <= sMax){
+  stimchoice=1
+} else {
+  stimchoice=2
+}
+
+
+
+HiddenNodeMatrix[,HNID[stimchoice]]=HiddenNodeMatrix[,HNID[stimchoice]]+d*(1-HiddenNodeMatrix[,HNID[stimchoice]])*Activation
+
+# create a 
+# 
+# Activation=exp(-s*(
+#     ((a)*abs(HiddenNodeMatrix[,1]-currentfreq))+
+#     ((1-a)*abs(HiddenNodeMatrix[,2]-currentorient))
+#   )) 
+
+# 
+# 
+# ActOut1=sum(HiddenNodeMatrix[,HNID[1]]*(Activation/sumAct))
+# ActOut2=sum(HiddenNodeMatrix[,HNID]*(Activation/sumAct))
+# 
+# ActOut = c(ActOut1,ActOut2)
+# sMax=exp(ct*ActOut[stimchoice])/(exp(ct*ActOut1)+exp(ct*ActOut2))
+
+#HiddenNodeMatrix[,(stimchoice+2)] = HiddenNodeMatrix[,(stimchoice+2)]+d*(ScaledReward-HiddenNodeMatrix[,(stimchoice+2)])*Activation
+
+
+
+
+
+# 
+# if (stimchoice==1){
+#   HiddenNodeMatrix[,HNID[stimchoice]]=HiddenNodeMatrix[,HNID[stimchoice]]+d*(1-HiddenNodeMatrix[,HNID[stimchoice]])*Activation
+# } else if (stimchoice==2){
+#   HiddenNodeMatrix[,HNID[2]]=HiddenNodeMatrix[,HNID[2]]+d*(ScaledReward-HiddenNodeMatrix[,HNID[2]])*Activation
+# }
+
+
+
+
+
+# ORginal code
+library(ggplot2)
+library(reshape2)
+library(dplyr)
+library(tidyverse)
+
+
+# Input number of trial, sims, and agents
+nTrials = 400
+nSims = 10
+nObs = 500
+rewType = 6 # 5 for regular rewards, 6 for discretized rewards
+
+
+
+#Load Stim Files
+# #Load Stim Files
+# stimfileCJDI = read.delim('stimuliCJ400DIRwds.dat', header = FALSE)
+# stimfileCJES = read.delim('stimuliCJ400ESRwds.dat', header = FALSE)
+# stimfileIIDI = read.delim('stimuliII400DIRwds.dat', header = FALSE)
+# stimfileIIES = read.delim('stimuliII400ESRwds.dat', header = FALSE)
+
+#Discretized rewards
+stimfileCJDI = read.csv('stimCJDIDiscrete.csv')[,-1]
+stimfileCJES = read.csv('stimCJESDiscrete.csv')[,-1]
+stimfileIIDI = read.csv('stimIIDIDiscrete.csv')[,-1]
+stimfileIIES = read.csv('stimIIESDiscrete.csv')[,-1]
+
+
+stimfile = rbind(stimfileCJDI,stimfileCJES,stimfileIIDI,stimfileIIES)
+#stimfile$V5 = round((((100-1)*(stimfile$V5-min(stimfile$V5))) / ((max(stimfile$V5)-min(stimfile$V5))))+1)
+
+# stimfileCJDI$V5 = round((((100-1)*(stimfileCJDI$V5-min(stimfileCJDI$V5))) / ((max(stimfileCJDI$V5)-min(stimfileCJDI$V5))))+1)
+# stimfileCJES$V5 = round((((100-1)*(stimfileCJES$V5-min(stimfileCJES$V5))) / ((max(stimfileCJES$V5)-min(stimfileCJES$V5))))+1)
+# stimfileIIDI$V5 = round((((100-1)*(stimfileIIDI$V5-min(stimfileIIDI$V5))) / ((max(stimfileIIDI$V5)-min(stimfileIIDI$V5))))+1)
+# stimfileIIES$V5 = round((((100-1)*(stimfileIIES$V5-min(stimfileIIES$V5))) / ((max(stimfileIIES$V5)-min(stimfileIIES$V5))))+1)
+# 
+
+numset = 0
+
+
+#Generate simulated participants - generates 500 sets of free parameters
+infoMat = data.frame(
+  trial = seq(1,500,1),
+  a = .5,#rep(.5,500),#runif(1000,0.001,1)[1]
+  s = .05,#rep(.05,500),#runif(1000,0.001,1)[1]
+  s2 = runif(500,.001,5),
+  d = runif(500,.001,1),
+  q = runif(500,.001,1)
+)
+
+
+
+# Preallocate node grid and hidden node matrix
+#creates evenly distributed nodes across the space
+numNodes = 441
+FreqNode = seq(0, 300, 15)
+OrientNode = seq(0, 300, 15)
+
+NodeMatrix = array(numeric(0), c(441, 2))
+NodeMatrix[, 1] = rep(FreqNode, each = 21)
+NodeMatrix[, 2] = rep(OrientNode, 21)
+HiddenNodeMatrix = array(numeric(),c(numNodes,11))
+HiddenNodeMatrix[1:numNodes,1]=NodeMatrix[1:numNodes,1]
+HiddenNodeMatrix[1:numNodes,2]=NodeMatrix[1:numNodes,2]
+
+
+for (simmodel in 1:1){
+  
+  # Preallocate data arrays
+  dataMatrix = as.data.frame(array(numeric(0),c(nObs*nTrials,16)))
+  trialMatrix = array(numeric(0),c(nTrials,16))
+  simMatrix = array(numeric(0),c(nSims*nTrials,16))
+
+  
+  
+  ActOut = c(0,0,0,0)
+  ActOutCat = c(0,0,0,0)
+  ActOutCatRwd = c(0,0,0,0)
+  
+  probsRwd = c(0,0,0,0)
+  probsCat = c(0,0,0,0)
+  probsCatRwd = c(0,0,0,0)
+
+  # Begin sims
+  for (stim in 1:4){
+    
+    # grab stim file 
+    if (stim == 1){
+      stimInd = 0
+      fname = 'CJDI'
+    } else if (stim == 2){
+      stimInd = 400
+      fname = 'CJES'
+    } else if (stim == 3){
+      stimInd = 800
+      fname = 'IIDI'
+    } else if (stim == 4){
+      stimInd = 1200
+      fname = 'IIES'
+    }
+    
+    
+    totalTrialNum = 1 # value used to iterate everything into one dataset per condition
+    for (p in 1:nObs) {
+      numset = numset + 1
+      
+      # Get params for this agent
+      a = infoMat[p,2]
+      s = infoMat[p,3]
+      s2 = infoMat[p,4]
+      d = infoMat[p,5]
+      q = infoMat[p,6]
+      ct=(3^s2)-1 
+      
+      
+      #totalSimTrial = 1
+      for (sim in 1:nSims) {
+        
+        
+        #randomize the stimulus presentation order
+        TrialVec = sample(nTrials, replace = FALSE)
+        data = stimfile[TrialVec+stimInd,]
+        
+        
+        # Reset hidden node matrix
+        HiddenNodeMatrix[1:numNodes,3]=.5 # weights for reward learner
+        HiddenNodeMatrix[1:numNodes,4]=.5
+        HiddenNodeMatrix[1:numNodes,5]=a
+        HiddenNodeMatrix[1:numNodes,6]=1-a
+        HiddenNodeMatrix[1:numNodes,8]=.5 #weights for category learner
+        HiddenNodeMatrix[1:numNodes,9]=.5
+        HiddenNodeMatrix[1:numNodes,10]=.5 #weights for catrwd learner
+        HiddenNodeMatrix[1:numNodes,11]=.5
+        #Activation=vector(numeric,441)
+        
+        
+        #   now start the trials
+        for (trialnum in 1:nTrials){
+          currentcat=data[(trialnum),1] #add 200 to each value to get them in the center of the net
+          currentfreq=data[(trialnum),2]
+          currentorient=data[(trialnum),3]
+          #points=data[trialnum,5] # Regular rewards
+          #points=data[trialnum,rewType]
+          #for dichom rewrads
+          points = 100
+          stimcat=data[trialnum,1]
+          pointspossible=points;
+          
+          
+          # Set up reward scaling
+          if (trialnum==1){ 
+            MaxReward=points+1
+            MinRewardRew=points-1
+            MinRewardCatRew=points-1
+            PointsLastRwd=points
+            PointsLastCatRwd=points
+          }
+          
+          if (points>MaxReward){
+            MaxReward=points;
+          }
+          
+          if (points<MinRewardRew){
+            MinRewardRew=points;
+          }
+          
+          if (points<MinRewardCatRew){
+            MinRewardCatRew=points;
+          }
+          
+          if (PointsLastRwd == 0){
+            MinRewardRew = 0
+          }
+          
+          if (PointsLastCatRwd == 0){
+            MinRewardCatRew = 0
+          }
+          
+          
+          #scale the reward
+          ScaledReward=(points-MinRewardRew)/(MaxReward-MinRewardRew)
+          ScaledCatRwd=(((points-MinRewardCatRew)/(MaxReward-MinRewardCatRew))*q)+(1-q) 
+          
+          
+          #get the activation value for each node 
+          Activation=exp(-s*((a*abs(HiddenNodeMatrix[,1]-currentfreq))+((1-a)*abs(HiddenNodeMatrix[,2]-currentorient))))
+          
+          
+          #sum the activation to normalize it
+          sumAct=sum(Activation)
+          avgAct = Activation/sumAct
+          
+          
+          #get output node activation
+          ActOut1=sum(HiddenNodeMatrix[,3]*avgAct) #Reward Learner
+          ActOut2=sum(HiddenNodeMatrix[,4]*avgAct)
+          ActOut1Cat=sum(HiddenNodeMatrix[,8]*avgAct) #Category Learner
+          ActOut2Cat=sum(HiddenNodeMatrix[,9]*avgAct)    
+          ActOut1CatRwd=sum(HiddenNodeMatrix[,10]*avgAct) #CatRwd Learner
+          ActOut2CatRwd=sum(HiddenNodeMatrix[,11]*avgAct)    
+          
+          
+          #softmax function for action selection probabilities 
+          rwdProbs = c(exp(ct*ActOut1),exp(ct*ActOut2))
+          catProbs = c(exp(ct*ActOut1Cat),exp(ct*ActOut2Cat))
+          catRwdProbs = c(exp(ct*ActOut1CatRwd),exp(ct*ActOut2CatRwd))
+          
+          Probs = rbind(rwdProbs,catProbs,catRwdProbs)
+          
+          for (i in 1:3){
+            for (j in 1:2){
+              if (is.infinite(Probs[i,j])){
+                Probs[i,j] = 700000
+              } 
+            }
+          }
+          
+          
+          pr1=Probs[1,1]/sum(Probs[1,])
+          pr1Cat=Probs[2,1]/sum(Probs[2,])
+          pr1CatRwd=Probs[3,1]/sum(Probs[3,])
+          
+          
+          #Get simulated response for reward learner
+          number=runif(1000,0,1)[1]
+          if (number<=pr1){ #takes the low end
+            stimchoice=1
+            
+          } else if (number>pr1){
+            stimchoice=2;
+          }
+          
+          
+          if (stimchoice==currentcat){
+            correct=1
+            pointsRew=points
+            PointsLastRwd = points
+            ScaledReward=ScaledReward;
+            
+          } else {
+            correct=0
+            pointsRew=0
+            PointsLastRwd = 0
+            ScaledReward=0
+          }
+          
+          
+          #number=runif(1000,0,1)[1]
+          if (number<=pr1Cat){
+            stimchoiceCat=1;
+            
+          } else if (number>pr1Cat){
+            stimchoiceCat=2;
+            
+          }
+          
+          if (stimchoiceCat==currentcat){
+            correctCat=1
+            pointsCat=points
+            ScaledRewardCat=1
+            
+          } else {
+            correctCat=0
+            pointsCat=0
+            ScaledRewardCat=0 
+            
+          }   
+          
+          #number=runif(1000,0,1)[1]
+          if (number<=pr1CatRwd){ 
+            stimchoiceCatRwd=1;
+            
+          } else if (number>pr1CatRwd){
+            stimchoiceCatRwd=2;
+            
+          }
+          
+          
+          if (stimchoiceCatRwd==currentcat){
+            correctCatRwd=1
+            pointsCatRwd=points
+            PointsLastCatRwd = points
+            ScaledRewardCatRwd=ScaledCatRwd
+            
+          } else {
+            correctCatRwd=0
+            pointsCatRwd=0
+            PointsLastCatRwd = 0
+            ScaledRewardCatRwd=0 
+            
+          }  
+          
+          if (simmodel == 1){
+            #Update learned association weights
+            if (stimchoice==1){
+              HiddenNodeMatrix[,3]=HiddenNodeMatrix[,3]+d*(ScaledReward-HiddenNodeMatrix[,3])*Activation
+              predErrorRew = sum(ScaledReward-HiddenNodeMatrix[,3])
+              predErrorRewAbs = sum(abs(ScaledReward-HiddenNodeMatrix[,3]))
+              
+            } else if (stimchoice==2){
+              HiddenNodeMatrix[,4]=HiddenNodeMatrix[,4]+d*(ScaledReward-HiddenNodeMatrix[,4])*Activation
+              predErrorRew = sum(ScaledReward-HiddenNodeMatrix[,4])
+              predErrorRewAbs = sum(abs(ScaledReward-HiddenNodeMatrix[,4]))
+              
+            }
+            
+            if (stimchoiceCat==1){
+              HiddenNodeMatrix[,8]=HiddenNodeMatrix[,8]+d*(ScaledRewardCat-HiddenNodeMatrix[,8])*Activation
+              predErrorCat = sum(ScaledRewardCat-HiddenNodeMatrix[,8])
+              predErrorCatAbs = sum(abs(ScaledRewardCat-HiddenNodeMatrix[,8]))
+              
+            } else if (stimchoiceCat==2){
+              HiddenNodeMatrix[,9]=HiddenNodeMatrix[,9]+d*(ScaledRewardCat-HiddenNodeMatrix[,9])*Activation
+              predErrorCat = sum(ScaledRewardCat-HiddenNodeMatrix[,9])
+              predErrorCatAbs = sum(abs(ScaledRewardCat-HiddenNodeMatrix[,9]))
+              
+            }
+            
+            if (stimchoiceCatRwd==1){
+              HiddenNodeMatrix[,10]=HiddenNodeMatrix[,10]+d*(ScaledRewardCatRwd-HiddenNodeMatrix[,10])*Activation
+              predErrorCatRwd = sum(ScaledRewardCatRwd-HiddenNodeMatrix[,10])
+              predErrorCatRwdAbs = sum(abs(ScaledRewardCatRwd-HiddenNodeMatrix[,10]))
+              
+            } else if (stimchoiceCatRwd==2){
+              HiddenNodeMatrix[,11]=HiddenNodeMatrix[,11]+d*(ScaledRewardCatRwd-HiddenNodeMatrix[,11])*Activation
+              predErrorCatRwd = sum(ScaledRewardCatRwd-HiddenNodeMatrix[,11])
+              predErrorCatRwdAbs = sum(abs(ScaledRewardCatRwd-HiddenNodeMatrix[,11]))
+              
+            }
+          } else if (simmodel == 2){
+            #Decay weights
+            HiddenNodeMatrix[,c(3,4,8:11)]*(1-d)
+            
+            if (stimchoice==1){
+              HiddenNodeMatrix[,3]=HiddenNodeMatrix[,3]+ScaledReward*Activation
+              predErrorRew = sum(ScaledReward-HiddenNodeMatrix[,3])
+              predErrorRewAbs = sum(abs(ScaledReward-HiddenNodeMatrix[,3]))
+              
+            } else if (stimchoice==2){
+              HiddenNodeMatrix[,4]=HiddenNodeMatrix[,4]+ScaledReward*Activation
+              predErrorRew = sum(ScaledReward-HiddenNodeMatrix[,4])
+              predErrorRewAbs = sum(abs(ScaledReward-HiddenNodeMatrix[,4]))
+              
+            } 
+            
+            # Update node matrix weights
+            if (stimchoiceCat==1){
+              HiddenNodeMatrix[,8]=HiddenNodeMatrix[,8]+ScaledRewardCat*Activation
+              predErrorCat = sum(ScaledRewardCat-HiddenNodeMatrix[,8])
+              predErrorCatAbs = sum(abs(ScaledRewardCat-HiddenNodeMatrix[,8]))
+              
+            } else if (stimchoiceCat==2){
+              HiddenNodeMatrix[,9]=HiddenNodeMatrix[,9]+ScaledRewardCat*Activation
+              predErrorCat = sum(ScaledRewardCat-HiddenNodeMatrix[,9])
+              predErrorCatAbs = sum(abs(ScaledRewardCat-HiddenNodeMatrix[,9]))
+              
+            } 
+            
+            if (stimchoiceCatRwd==1){
+              HiddenNodeMatrix[,10]=HiddenNodeMatrix[,10]+ScaledRewardCatRwd*Activation
+              predErrorCatRwd = sum(ScaledRewardCatRwd-HiddenNodeMatrix[,10])
+              predErrorCatRwdAbs = sum(abs(ScaledRewardCatRwd-HiddenNodeMatrix[,10]))
+              
+            } else if (stimchoiceCatRwd==2){
+              HiddenNodeMatrix[,11]=HiddenNodeMatrix[,11]+ScaledRewardCatRwd*Activation
+              predErrorCatRwd = sum(ScaledRewardCatRwd-HiddenNodeMatrix[,11])
+              predErrorCatRwdAbs = sum(abs(ScaledRewardCatRwd-HiddenNodeMatrix[,11]))
+              
+            } 
+            
+          }
+          
+          
+          
+          trialMatrix[trialnum,]=c(stimchoice, correct, pointsRew, correctCat, pointsCat, correctCatRwd, pointsCatRwd, predErrorRew, predErrorCat, predErrorCatRwd, predErrorRewAbs, predErrorCatAbs, predErrorCatRwdAbs, sim, p, trialnum)
+          totalTrialNum = totalTrialNum + 1
+          
+          
+        } #of one data set
+        
+        # puts all sim info for one agent into here
+        simStart = ((sim-1)*nTrials)+1
+        simEnd = sim*nTrials
+        simMatrix[simStart:simEnd,] = trialMatrix
+        
+        
+      } 
+      
+      # aggregate one participants sim data by trial
+      pStart = ((p-1)*nTrials)+1
+      pEnd = p*nTrials
+      dataMatrix[pStart:pEnd,] = aggregate(simMatrix,list(simMatrix[,16]),FUN = function(x) mean(x))[,1:16]
+      
+      print(paste('Completed ',fname,' simulation ',nSims,' of ',nSims,'. For Participant ',p,' of ',nObs,sep=''))
+      
+    }
+    
+    
+    if (stim == 1){
+      dataMatrixCJDI = dataMatrix
+    } else if (stim == 2){
+      dataMatrixCJES = dataMatrix
+    } else if (stim == 3){
+      dataMatrixIIDI = dataMatrix
+    } else if (stim == 4){
+      dataMatrixIIES = dataMatrix
+    }
+    
+    
+  }
+  allDataMatrix = rbind(dataMatrixCJDI,dataMatrixCJES,dataMatrixIIDI,dataMatrixIIES)
+  colnames(allDataMatrix) = c('trialnum','choice', 'correctRew', 'pointsRew', 'correctCat', 'pointsCat', 'correctCatRwd', 'pointsCatRwd', 'predErrorRew', 'predErrorCat', 'predErrorCatRwd', 'predErrorRewAbs', 'predErrorCatAbs', 'predErrorCatRwdAbs','sim','p')
+  allDataMatrix['stimuli'] = rep(c('CJDI','CJES','IIDI','IIES'),each=(500*400))
+  
+  if (simmodel == 1){
+    allDataDelta = allDataMatrix
+  } else if (simmodel == 2){
+    allDataDecay = allDataMatrix
+  }
+  
+  
+}
+
+
+allDataDelta["ModelType"] = 'Delta'
+allDataDecay["ModelType"] = 'Decay'
